@@ -19,16 +19,24 @@ fn main() {
     radio
         .set_sample_rate(FS * DIV, DIV)
         .expect("Failed to set sample rate");
-    radio.set_freq(FC).expect("Failed to set frequency");
+    radio
+        .set_freq(FC)
+        .expect("Failed to set frequency");
     radio
         .set_amp_enable(false)
         .expect("Failed to disable amplifier");
     radio
         .set_antenna_enable(0)
         .expect("Failed to disable antenna");
-    radio.set_lna_gain(20).expect("Failed to set LNA gain");
-    radio.set_vga_gain(32).expect("Failed to set VGA gain");
-    let mut radio: HackRfOne<RxMode> = radio.into_rx_mode().expect("Failed to enter RX mode");
+    radio
+        .set_lna_gain(20)
+        .expect("Failed to set LNA gain");
+    radio
+        .set_vga_gain(32)
+        .expect("Failed to set VGA gain");
+    
+    let mut radio: HackRfOne<RxMode> = radio.into_rx_mode()
+        .expect("Failed to enter RX mode");
 
     let (data_tx, data_rx) = mpsc::channel();
     let (exit_tx, exit_rx) = mpsc::channel();
@@ -39,11 +47,14 @@ fn main() {
             println!("Spawned sample thread");
 
             loop {
+                // receive Samples from HackRfOne
                 let samples: Vec<u8> = radio.rx()?;
+                // Push into Channel
                 data_tx
                     .send(samples)
                     .expect("Failed to send buffer from sample thread");
 
+                // Non-Blocking Call to wait for End Thread
                 match exit_rx.try_recv() {
                     Ok(_) => {
                         radio.stop_rx()?;
@@ -64,8 +75,10 @@ fn main() {
 
     loop {
         match data_rx.try_recv() {
-            Ok(buf) => buf.chunks_exact(2).for_each(|iq| {
-                capture_buf.push(iq_to_cplx_f32(iq[0], iq[1]));
+            Ok(buf) => buf
+                .chunks_exact(2)
+                .for_each(|iq| {
+                    capture_buf.push(iq_to_cplx_f32(iq[0], iq[1]));
             }),
             Err(TryRecvError::Disconnected) => {
                 println!("Sample thread disconnected");
